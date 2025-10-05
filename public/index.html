@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>INTERCODIGOS EPIIS</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Plataforma oficial para seguir los partidos de INTERCODIGOS EPIIS en tiempo real.">
+  <meta name="keywords" content="intercodigos, EPIIS, fútbol, torneo, deportes">
+  <meta name="author" content="INTERCODIGOS Team">
+  <link rel="icon" type="image/png" href="/favicon.png">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+
+  <style>
+    /* Cuando el partido está seleccionado (detalles.show), cambia el color del contador y texto de pausado */
+    .partido .detalles.show ~ .estado-container .temporizador {
+      color: #222 !important;
+      text-shadow: none !important;
+      background: none !important;
+    }
+    .partido .detalles.show ~ .estado-container .estado-texto {
+      color: #222 !important;
+      text-shadow: none !important;
+    }
+    /* Alternativamente, si el texto de pausado tiene una clase específica */
+    .estado-texto.pausado {
+      color: #222 !important;
+      text-shadow: none !important;
+    }
+    /* === RESET === */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #000000 0%, #003366 50%, #000000 100%);
+      color: #FFFFFF;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container { max-width: 1200px; margin: 0 auto; }
+
+    /* === TITULO === */
+    h1 {
+      text-align: center;
+      color: #00cfff;
+      font-size: 3.5em;
+      font-weight: 900;
+      text-transform: uppercase;
+      text-shadow: 0 0 30px #00cfff, 2px 2px 8px #00aaff;
+      margin-bottom: 40px;
+      letter-spacing: 3px;
+      position: relative;
+    }
+    h1::before, h1::after {
+      content: '';
+      position: absolute;
+      height: 4px;
+      background: linear-gradient(90deg, transparent, #00cfff, #33ff00, #00cfff, transparent);
+      width: 60%;
+      left: 20%;
+    }
+    h1::before { top: -10px; }
+    h1::after { bottom: -10px; }
+
+    /* === PARTIDO === */
+    .partido {
+      background: linear-gradient(145deg, rgba(0, 0, 0, 0.98) 0%, rgba(0, 32, 120, 0.98) 100%);
+      border: 3px solid #00cfff;
+      border-radius: 20px;
+      padding: 25px;
+      margin: 20px auto;
+      max-width: 700px;
+      text-align: center;
+      box-shadow: 0 10px 40px #00cfff, 0 0 30px #0044ff;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    .partido::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(45deg, #07a8dae0, #00135a, #166dcbdd);
+      z-index: -1;
+      padding: 3px;
+      border-radius: 20px;
+    }
+    .partido:hover {
+      transform: translateY(-5px) scale(1.02);
+      box-shadow: 0 15px 40px rgba(0,0,0,0.4);
+    }
+    .partido h3 {
+      margin-bottom: 20px;
+      color: #fff;
+      font-size: 1.8em;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      padding: 10px 20px;
+      background: linear-gradient(45deg, #0044ff, #00cfff);
+      border-radius: 10px;
+      text-shadow: 1px 1px 8px #00cfff;
+    }
+
+    /* VS */
+    .vs {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 20px 0;
+      position: relative;
+    }
+    .vs::before {
+      content: '';
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 80px; height: 80px;
+      background: radial-gradient(circle, #f0fffe, #41c1fd);
+      border-radius: 50%;
+      opacity: 0.2;
+    }
+    .equipo {
+      width: 40%;
+      padding: 15px;
+      background: rgba(0, 32, 120, 0.9);
+      border-radius: 15px;
+      border: 2px solid #00cfff;
+      position: relative;
+      z-index: 1;
+    }
+    .equipo h4 {
+      color: #00cfff;
+      font-size: 1.2em;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      text-shadow: 0 0 8px #00cfff;
+    }
+    .equipo span {
+      font-size: 3em;
+      color: #00ffea;
+      font-weight: 900;
+      text-shadow: 2px 2px 12px #00cfff;
+      display: block;
+    }
+    .vs-text {
+      color: #00cfff;
+      font-size: 2em;
+      font-weight: bold;
+      text-shadow: 2px 2px 12px #00cfff;
+      z-index: 2;
+    }
+
+    /* ESTADO */
+    .estado-container { margin: 20px 0 10px 0; text-align: center; }
+    .estado { height: 8px; border-radius: 10px; margin: 10px 0; position: relative; overflow: hidden; }
+    .estado::before {
+      content: ''; position: absolute; top: 0; left: -100%;
+      width: 100%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+      animation: shimmer 2s infinite;
+    }
+    @keyframes shimmer { 0% { left: -100%; } 100% { left: 100%; } }
+
+    .estado.en-espera { background: linear-gradient(45deg, #666, #999); }
+  .estado.jugando { background: linear-gradient(45deg, #00dd00, #00cfff); box-shadow: 0 0 25px #00cfff; }
+  .estado.acabado { background: linear-gradient(45deg, #FF0000, #ff00c8); box-shadow: 0 0 25px #ff00c8; }
+
+  .estado-texto { font-size: 0.9em; font-weight: bold; margin-top: 5px; text-transform: uppercase; letter-spacing: 1px; color: #2ea4ff; text-shadow: 0 0 8px #00cfff; }
+    .en-espera .estado-texto { color: #7c7c7c; }
+    .jugando .estado-texto { color: rgb(0, 215, 0); text-shadow: 0 0 10px rgba(0,255,0,0.5); }
+    .acabado .estado-texto { color: #f00; text-shadow: 0 0 10px rgba(255,0,0,0.5); }
+
+    /* DETALLES */
+    .detalles {
+      display: none;
+      opacity: 0;
+      transform: translateY(-20px);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      margin-top: 20px;
+      text-align: left;
+      background: linear-gradient(145deg, #003366, #000000);
+      padding: 20px;
+      border-radius: 15px;
+      border: 2px solid #00cfff;
+      color: #fff;
+    }
+    .detalles.show { display: block; opacity: 1; transform: translateY(0); }
+    .detalles h5 {
+      color: #00cfff;
+      margin: 15px 0 8px 0;
+      font-size: 1.1em;
+      text-transform: uppercase;
+      border-bottom: 2px solid #00cfff;
+      padding-bottom: 5px;
+      display: flex; align-items: center; gap: 8px;
+      text-shadow: 0 0 8px #00cfff;
+    }
+    .detalles p { margin: 8px 0; line-height: 1.5; }
+    .detalles p:empty::before { content: 'No definido'; color: #999; font-style: italic; }
+
+    .temporizador {
+      font-size: 1.5em;
+      color: #2ea4ff;
+      font-weight: bold;
+      text-align: center;
+      margin-top: 10px;
+      text-shadow: 0 0 18px #00cfff;
+    }
+
+    /* BOTONES */
+    .botones {
+      text-align: center;
+      margin: 40px 0;
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+    button {
+      background: linear-gradient(45deg, #00ffc8, #0044ff);
+      color: #fff;
+      border: none;
+      padding: 15px 30px;
+      border-radius: 25px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 1.1em;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      transition: all 0.3s ease;
+      box-shadow: 0 5px 25px #00cfff;
+      position: relative;
+      overflow: hidden;
+    }
+    button::before {
+      content: '';
+      position: absolute;
+      top: 50%; left: 50%;
+      width: 0; height: 0;
+      background: rgba(255,255,255,0.3);
+      border-radius: 50%;
+      transition: all 0.3s ease;
+      transform: translate(-50%, -50%);
+    }
+    button:hover::before { width: 300px; height: 300px; }
+    button:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(0,0,0,0.4); }
+    button i { margin-right: 8px; }
+
+    /* EXTRA */
+    .no-partidos { text-align: center; color: #999; font-size: 1.2em; margin: 50px 0; font-style: italic; }
+
+    /* RESPONSIVE */
+    @media (max-width: 768px) {
+      h1 { font-size: 2.5em; margin-bottom: 30px; }
+      .partido { padding: 20px; margin: 15px auto; }
+      .partido h3 { font-size: 1.5em; }
+      .equipo span { font-size: 2.5em; }
+      .vs-text { font-size: 1.5em; }
+      .botones { flex-direction: column; align-items: center; }
+      button { width: 80%; max-width: 300px; }
+    }
+    @media (max-width: 480px) {
+      body { padding: 10px; }
+      h1 { font-size: 2em; }
+      .vs { flex-direction: column; gap: 15px; }
+      .equipo { width: 80%; }
+      .vs-text { order: -1; margin-bottom: 10px; }
+    }
+
+    .seccion-contenido {
+      max-width: 700px;
+      margin: 30px auto;
+      background: linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(240,240,240,0.95) 100%);
+      border-radius: 20px;
+      padding: 30px 25px 35px 25px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3), 0 0 20px rgba(79, 195, 247, 0.2);
+      border: 3px solid transparent;
+      background-clip: padding-box;
+      color: #1a1a1a;
+      text-align: center;
+    }
+    .seccion-contenido h2 {
+      color: #060ae7;
+      font-size: 2.2em;
+      margin-bottom: 25px;
+      text-transform: uppercase;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+    }
+    .formulario-informar {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      align-items: center;
+    }
+    .formulario-informar input {
+      width: 100%;
+      max-width: 400px;
+      padding: 15px 20px;
+      border: 2px solid #4FC3F7;
+      border-radius: 15px;
+      background: rgba(255,255,255,0.1);
+      color: #1a1a1a;
+      font-size: 1.1em;
+    }
+    .formulario-informar button {
+      background: linear-gradient(45deg, #4FC3F7, #007bff);
+      color: #000000;
+      border: none;
+      padding: 12px 28px;
+      border-radius: 25px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 1.1em;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      transition: all 0.3s ease;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+      position: relative;
+      overflow: hidden;
+    }
+    .formulario-informar button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0,0,0,0.25);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="botones">
+      <button onclick="mostrarPartidos()"><i class="fas fa-home"></i>Inicio</button>
+      <button onclick="mostrarFixture()"><i class="fas fa-calendar-alt"></i>Fixture</button>
+      <button onclick="mostrarInformar()"><i class="fas fa-comment"></i>Informar</button>
+    </div>
+
+  <h1><i class="fas fa-futbol"></i> INTERCODIGOS EPIIS</h1>
+
+    <div id="partidos"></div>
+
+    <div id="fixture" class="seccion-contenido" style="display:none">
+      <h2><i class="fas fa-calendar-alt"></i> Fixture del Torneo</h2>
+      <div id="fixture-content"></div>
+    </div>
+
+    <div id="informar" class="seccion-contenido" style="display:none">
+      <h2><i class="fas fa-comment-dots"></i> Enviar Comentario</h2>
+      <div class="formulario-informar">
+        <input type="text" id="nuevo-comentario" placeholder="Escribe tu comentario aquí...">
+        <button onclick="enviarComentario()"><i class="fas fa-paper-plane"></i>Enviar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+const socket = io();
+socket.on('connect', () => {
+  console.log('Conectado al servidor socket.io');
+  socket.emit('solicitar_partidos');
+});
+const partidosDiv = document.getElementById('partidos');
+const fixtureDiv = document.getElementById('fixture-content');
+const comentariosDiv = document.createElement('div');
+comentariosDiv.id = 'comentarios-publico';
+document.getElementById('informar').appendChild(comentariosDiv);
+let partidosCrono = {};
+let ultimoPartidos = [];
+
+function ordenarPartidosPublico(partidos) {
+  const ordenEstado = { "Jugando": 1, "Pausado": 2, "En espera": 3, "Acabado": 4 };
+  return partidos.slice().sort((a, b) => {
+    let estadoDiff = (ordenEstado[a.estado] || 5) - (ordenEstado[b.estado] || 5);
+    if (estadoDiff !== 0) return estadoDiff;
+    return b.id - a.id;
+  });
+}
+
+socket.on('partidos_update', (partidos) => {
+  console.log('[SOCKET] partidos_update', partidos);
+  partidosDiv.innerHTML = '';
+  partidosCrono = {};
+  ultimoPartidos = partidos.map(p => ({ ...p }));
+  if (!partidos || partidos.length === 0) {
+    partidosDiv.innerHTML = '<div class="no-partidos"><i class="fas fa-info-circle"></i> No hay partidos programados</div>';
+    return;
+  }
+  partidos = ordenarPartidosPublico(partidos);
+  partidos.forEach(partido => {
+    const div = document.createElement('div');
+    const estadoClass = partido.estado.toLowerCase().replace(' ', '-');
+    const sanitizedTitulo = partido.titulo.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const estadoTexto = {
+      'En espera': 'POR JUGAR',
+      'Jugando': '🔴 EN VIVO',
+      'Pausado': '⏸️ PAUSADO',
+      'Acabado': 'FINALIZADO'
+    };
+    let jugadores1 = "", jugadores2 = "";
+    if (partido.jugadores && partido.jugadores.includes("|")) {
+      [jugadores1, jugadores2] = partido.jugadores.split("|");
+      jugadores1 = (jugadores1 || "").trim();
+      jugadores2 = (jugadores2 || "").trim();
+    } else if (partido.jugadores) {
+      jugadores1 = partido.jugadores.trim();
+    }
+    partidosCrono[partido.id] = {
+      estado: partido.estado,
+      start_time: partido.start_time,
+      elapsed_time: partido.elapsed_time || 0,
+      tiempo: partido.tiempo || 0
+    };
+    let temporizadorHtml = '';
+    if (["Jugando", "Pausado", "Acabado"].includes(partido.estado)) {
+      temporizadorHtml = `<div class="temporizador" id="temporizador-${partido.id}">${formatearTiempo(calcularCronometroPublico(partido))}</div>`;
+    }
+    div.className = `partido ${estadoClass}`;
+    div.innerHTML = `
+      <h3><i class="fas fa-trophy"></i> ${sanitizedTitulo}</h3>
+      <div class="vs">
+        <div class="equipo"><h4>${partido.equipo1}</h4><span>${partido.puntaje1 || 0}</span></div>
+        <div class="vs-text">VS</div>
+        <div class="equipo"><h4>${partido.equipo2}</h4><span>${partido.puntaje2 || 0}</span></div>
+      </div>
+      <div class="estado-container">
+        <div class="estado ${estadoClass}"></div>
+        <div class="estado-texto">${estadoTexto[partido.estado] || partido.estado.toUpperCase()}</div>
+        ${temporizadorHtml}
+      </div>
+      <div class="detalles" id="detalles-${partido.id}">
+        <div style="display: flex; gap: 24px; flex-wrap: wrap;">
+          <div style="flex:1; min-width: 180px;">
+            <h5><i class='fas fa-users'></i> Jugadores de ${partido.equipo1}</h5>
+            <ul style='margin-left: 10px;'>${renderJugadores(jugadores1)}</ul>
+          </div>
+          <div style="flex:1; min-width: 180px;">
+            <h5><i class='fas fa-users'></i> Jugadores de ${partido.equipo2}</h5>
+            <ul style='margin-left: 10px;'>${renderJugadores(jugadores2)}</ul>
+          </div>
+        </div>
+        <h5><i class="fas fa-exclamation-triangle"></i> Sanciones</h5>
+        <p>${partido.sanciones || ''}</p>
+        <h5><i class="fas fa-clipboard-list"></i> Observaciones</h5>
+        <p>${partido.observaciones || ''}</p>
+      </div>
+    `;
+    div.addEventListener('click', (e) => {
+      if (!e.target.closest('button') && !e.target.closest('input')) {
+        const detalles = document.getElementById(`detalles-${partido.id}`);
+        detalles.classList.toggle('show');
+        const estadoTexto = div.querySelector('.estado-texto');
+        const temporizador = div.querySelector('.temporizador');
+        if (detalles.classList.contains('show')) {
+          if (estadoTexto && estadoTexto.textContent.includes('PAUSADO')) {
+            estadoTexto.classList.add('pausado');
+          }
+          if (temporizador) temporizador.style.color = '#222';
+        } else {
+          if (estadoTexto) estadoTexto.classList.remove('pausado');
+          if (temporizador) temporizador.style.color = '';
+        }
+      }
+    });
+    partidosDiv.appendChild(div);
+  });
+});
+
+socket.on('fixture_update', (fixtures) => {
+  console.log('[SOCKET] fixture_update', fixtures);
+  fixtureDiv.innerHTML = '';
+  if (!fixtures || fixtures.length === 0) {
+    fixtureDiv.innerHTML = '<div class="no-partidos"><i class="fas fa-info-circle"></i> No hay fixture disponible</div>';
+    return;
+  }
+  fixtures.forEach(fix => {
+    const img = document.createElement('img');
+    img.src = `/uploads/${fix.imagen}`;
+    img.alt = 'Fixture';
+    img.style = 'width:100%;border-radius:15px;margin:15px 0;border:3px solid #4FC3F7;box-shadow:0 10px 30px rgba(0,0,0,0.3);';
+    fixtureDiv.appendChild(img);
+  });
+});
+
+socket.on('comentarios_update', (comentarios) => {
+  console.log('[SOCKET] comentarios_update', comentarios);
+  comentariosDiv.innerHTML = '<h3 style="color:#4FC3F7;margin-bottom:10px;"><i class="fas fa-comments"></i> Comentarios del público</h3>';
+  if (!comentarios || comentarios.length === 0) {
+    comentariosDiv.innerHTML += '<div class="no-partidos"><i class="fas fa-info-circle"></i> No hay comentarios aún</div>';
+    return;
+  }
+  const ul = document.createElement('ul');
+  ul.style = 'list-style:none;padding:0;margin:0;max-height:300px;overflow-y:auto;text-align:left;';
+  comentarios.forEach(c => {
+    const li = document.createElement('li');
+    li.style = 'background:rgba(255,255,255,0.8);color:#222;margin-bottom:10px;padding:10px 15px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.08);';
+    li.innerHTML = `<i class="fas fa-user"></i> ${c.texto}`;
+    ul.appendChild(li);
+  });
+  comentariosDiv.appendChild(ul);
+});
+
+function enviarComentario() {
+  const input = document.getElementById('nuevo-comentario');
+  const texto = input.value.trim();
+  if (!texto) {
+    mostrarMensajeError('El comentario no puede estar vacío');
+    return;
+  }
+  if (texto.length > 500) {
+    mostrarMensajeError('El comentario es demasiado largo');
+    return;
+  }
+  socket.emit('agregar_comentario', texto);
+  input.value = '';
+  mostrarMensajeExito('¡Comentario enviado!');
+}
+
+function mostrarMensajeExito(msg) {
+  mostrarMensaje(msg, 'mensaje-exito');
+}
+function mostrarMensajeError(msg) {
+  mostrarMensaje(msg, 'mensaje-error');
+}
+function mostrarMensaje(msg, clase) {
+  let div = document.createElement('div');
+  div.className = clase;
+  div.textContent = msg;
+  document.body.appendChild(div);
+  setTimeout(() => { div.remove(); }, 2500);
+}
+
+function renderJugadores(jugadores) {
+  if (!jugadores) return "<li>No definido</li>";
+  const lista = jugadores.split(/,|\n/).filter(j => j.trim());
+  return lista.length ? lista.map(j => `<li>${j.trim()}</li>`).join('') : "<li>No definido</li>";
+}
+
+function formatearTiempo(segundos) {
+  if (!Number.isFinite(segundos)) return '0:00';
+  if (segundos > 10800) segundos = 10800;
+  let h = Math.floor(segundos / 3600);
+  let m = Math.floor((segundos % 3600) / 60);
+  let s = segundos % 60;
+  return `${h > 0 ? h + ':' : ''}${(m < 10 && h > 0 ? '0' : '') + m}:${s < 10 ? '0' : ''}${s}`;
+}
+
+function calcularCronometroPublico(partido) {
+  let segundos = Number(partido.elapsed_time) || 0;
+  if (partido.estado === 'Jugando' && partido.start_time) {
+    const start = new Date(partido.start_time).getTime();
+    segundos += Math.floor((Date.now() - start) / 1000);
+  }
+  if (segundos > 10800) segundos = 10800;
+  if (segundos < 0 || !Number.isFinite(segundos)) segundos = 0;
+  return segundos;
+}
+
+setInterval(() => {
+  if (!ultimoPartidos || !Array.isArray(ultimoPartidos)) return;
+  ultimoPartidos.forEach(partido => {
+    if (["Jugando", "Pausado", "Acabado"].includes(partido.estado)) {
+      const span = document.getElementById(`temporizador-${partido.id}`);
+      if (span) {
+        span.textContent = formatearTiempo(calcularCronometroPublico(partido));
+      }
+    }
+  });
+}, 1000);
+
+function calcularTiempoPartido(partido) {
+  let segundos = Number(partido.tiempo) || 0;
+  if (segundos < 0 || !Number.isFinite(segundos)) segundos = 0;
+  if (segundos > 10800) segundos = 10800;
+  let h = Math.floor(segundos / 3600);
+  let m = Math.floor((segundos % 3600) / 60);
+  let s = segundos % 60;
+  return `${h > 0 ? h + ':' : ''}${(m < 10 && h > 0 ? '0' : '') + m}:${s < 10 ? '0' : ''}${s}`;
+}
+
+function mostrarPartidos() {
+  document.getElementById('partidos').style.display = '';
+  document.getElementById('fixture').style.display = 'none';
+  document.getElementById('informar').style.display = 'none';
+}
+function mostrarFixture() {
+  document.getElementById('partidos').style.display = 'none';
+  document.getElementById('fixture').style.display = '';
+  document.getElementById('informar').style.display = 'none';
+  socket.emit('solicitar_fixtures');
+}
+function mostrarInformar() {
+  document.getElementById('partidos').style.display = 'none';
+  document.getElementById('fixture').style.display = 'none';
+  document.getElementById('informar').style.display = '';
+  socket.emit('solicitar_comentarios');
+}
+mostrarPartidos();
+socket.emit('solicitar_fixtures');
+socket.emit('solicitar_comentarios');
+  </script>
+</body>
+</html>

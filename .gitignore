@@ -1,0 +1,7 @@
+node_modules/
+intercodigos.db
+/backups/
+/uploads/
+.env
+npm-debug.log
+.DS_Store

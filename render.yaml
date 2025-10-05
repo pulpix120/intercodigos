@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: intercodigos-web
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    branch: main
+    region: oregon
+    plan: free
+    envVars:
+      - key: JWT_SECRET
+        value: "CAMBIA_AQUI_UN_VALOR_SEGURO"
