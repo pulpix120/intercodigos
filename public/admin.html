@@ -1084,7 +1084,8 @@ function loginAdmin() {
             fixtures.forEach(function(f) {
                 const div = document.createElement('div');
                 div.style = 'position:relative;display:inline-block;background:#222;padding:10px;border-radius:10px;box-shadow:0 2px 8px #0008;';
-                div.innerHTML = `<img src="/uploads/${f.imagen}" alt="Fixture" style="max-width:220px;max-height:220px;display:block;border-radius:8px;">`+
+                const imgSrc = f.imagen_url ? f.imagen_url : `/uploads/${f.imagen}`;
+                div.innerHTML = `<img src="${imgSrc}" alt="Fixture" style="max-width:220px;max-height:220px;display:block;border-radius:8px;">`+
                 `<button class='btn-accion btn-eliminar' style='position:absolute;top:8px;right:8px;padding:6px 10px;font-size:1em;' onclick='eliminarFixture(${f.id})'><i class='fas fa-trash-alt'></i></button>`;
                 cont.appendChild(div);
             });

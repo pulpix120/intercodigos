@@ -3,6 +3,15 @@ const http = require('http');
 const socketIo = require('socket.io');
 const sqlite3 = require('sqlite3').verbose();
 const multer = require('multer');
+// Optional S3 client for persistent uploads (used when AWS_* env vars are present)
+let S3Client, PutObjectCommand;
+try {
+    const aws = require('@aws-sdk/client-s3');
+    S3Client = aws.S3Client;
+    PutObjectCommand = aws.PutObjectCommand;
+} catch (e) {
+    // dependency may not be installed; server will still work with local filesystem
+}
 const path = require('path');
 const fs = require('fs');
 const jwt = require('jsonwebtoken');
@@ -187,22 +196,41 @@ app.post('/upload-fixture', authenticateAdmin, (req, res) => {
         if (!req.file) {
             return res.status(400).json({ error: 'No se seleccionó ningún archivo' });
         }
-
-        const stmt = db.prepare("INSERT INTO fixtures (imagen) VALUES (?)");
-        stmt.run([req.file.filename], function(err) {
-            if (err) {
-                console.error('❌ Error guardando fixture en DB:', err);
-                return res.status(500).json({ error: 'Error guardando en base de datos' });
+        // If AWS credentials are set, attempt to upload to S3 for persistence
+        const shouldUseS3 = process.env.AWS_BUCKET && process.env.AWS_REGION && process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY && S3Client;
+        (async () => {
+            let imagenUrl = `/uploads/${req.file.filename}`;
+            if (shouldUseS3) {
+                try {
+                    const s3 = new S3Client({ region: process.env.AWS_REGION });
+                    const fileBuffer = fs.readFileSync(req.file.path);
+                    const key = `fixtures/${req.file.filename}`;
+                    await s3.send(new PutObjectCommand({ Bucket: process.env.AWS_BUCKET, Key: key, Body: fileBuffer, ContentType: req.file.mimetype }));
+                    imagenUrl = `https://${process.env.AWS_BUCKET}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
+                    // Optionally remove local file after uploading
+                    try { fs.unlinkSync(req.file.path); } catch (e) { /* ignore */ }
+                } catch (s3err) {
+                    console.error('❌ Error subiendo a S3, se usará ruta local:', s3err);
+                    imagenUrl = `/uploads/${req.file.filename}`;
+                }
             }
-            
-            console.log('✅ Fixture subido:', req.file.filename);
-            emitFixturesUpdate();
-            res.json({ 
-                message: 'Fixture subido exitosamente', 
-                filename: req.file.filename 
+
+            const stmt = db.prepare("INSERT INTO fixtures (imagen) VALUES (?)");
+            stmt.run([req.file.filename], function(err) {
+                if (err) {
+                    console.error('❌ Error guardando fixture en DB:', err);
+                    return res.status(500).json({ error: 'Error guardando en base de datos' });
+                }
+                console.log('✅ Fixture procesado:', req.file.filename, 'url:', imagenUrl);
+                emitFixturesUpdate();
+                res.json({ 
+                    message: 'Fixture subido exitosamente', 
+                    filename: req.file.filename,
+                    imagen_url: imagenUrl
+                });
             });
-        });
-        stmt.finalize();
+            stmt.finalize();
+        })();
     });
 });
 
@@ -210,8 +238,14 @@ app.post('/upload-fixture', authenticateAdmin, (req, res) => {
 function getFixtures() {
     return new Promise((resolve, reject) => {
         db.all("SELECT * FROM fixtures ORDER BY created_at DESC", (err, rows) => {
-            if (err) reject(err);
-            else resolve(rows || []);
+            if (err) return reject(err);
+            const fixtures = (rows || []).map(r => {
+                const s3Configured = process.env.AWS_BUCKET && process.env.AWS_REGION;
+                const key = `fixtures/${r.imagen}`;
+                const imagen_url = s3Configured ? `https://${process.env.AWS_BUCKET}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}` : `/uploads/${r.imagen}`;
+                return { ...r, imagen_url };
+            });
+            resolve(fixtures);
         });
     });
 }

@@ -73,4 +73,27 @@ Notas finales
   - Añadir integración con S3 para `uploads/`.
   - Añadir un `Dockerfile` y desplegar como servicio Docker.
 
+Soporte opcional para persistencia de uploads en S3
+-------------------------------------------------
+He añadido lógica opcional en `server.js` para subir fixtures a S3 si configuras las siguientes variables de entorno en Render:
+
+- `AWS_REGION` (ej: us-east-1)
+- `AWS_BUCKET` (nombre del bucket)
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
+
+Comportamiento:
+- Si estas variables están presentes y la dependencia `@aws-sdk/client-s3` está instalada, al subir un fixture el servidor subirá el archivo al bucket bajo la llave `fixtures/<filename>` y responderá con `imagen_url` apuntando al objeto S3.
+- Si S3 no está configurado, el servidor seguirá guardando el archivo en `/uploads/` y usando esa ruta.
+
+Pasos para activar S3 en Render:
+1. Crea un bucket en AWS S3 (ej: `mi-bucket-intercodigos`).
+2. Crea un IAM user con permisos `s3:PutObject` y `s3:GetObject` para el bucket.
+3. En Render, en la configuración del servicio, añade las variables de entorno listadas arriba con los valores correspondientes.
+4. Ejecuta en la raíz del proyecto:
+   npm install
+5. Reinicia el servicio en Render para recoger las variables.
+
+Nota: incluso con S3 los metadatos y referencias a fixtures se guardan en SQLite por ahora; para producción robusta recomendamos migrar a una base de datos gestionada (Postgres) y actualizar las consultas.
+
 Si quieres, aplico los cambios automáticos ahora: asegurar `package.json` (ya hecho), añadir un `Procfile` o `render.yaml`, y crear `README_RENDER.md` (este archivo). ¿Quieres que genere un `render.yaml` para que la app pueda desplegarse automáticamente con la configuración por defecto?

@@ -474,7 +474,7 @@ socket.on('fixture_update', (fixtures) => {
   }
   fixtures.forEach(fix => {
     const img = document.createElement('img');
-    img.src = `/uploads/${fix.imagen}`;
+    img.src = fix.imagen_url ? fix.imagen_url : `/uploads/${fix.imagen}`;
     img.alt = 'Fixture';
     img.style = 'width:100%;border-radius:15px;margin:15px 0;border:3px solid #4FC3F7;box-shadow:0 10px 30px rgba(0,0,0,0.3);';
     fixtureDiv.appendChild(img);
